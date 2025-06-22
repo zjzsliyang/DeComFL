@@ -6,7 +6,8 @@ from functools import partial
 from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM
 
-
+from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
+from cezo_fl.gradient_estimators.bes_gradient_estimator import BernoulliSmoothGradientEstimator
 from cezo_fl.util import model_helpers
 from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
@@ -204,7 +205,7 @@ def get_model_inferences_and_metrics(
 
 def get_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
-) -> RandomGradientEstimator | AdamForwardGradientEstimator:
+) -> AbstractGradientEstimator:
     no_optim = not rge_setting.optim
     if rge_setting.estimator_type == EstimatorType.vanilla:
         return RandomGradientEstimator(
@@ -227,6 +228,16 @@ def get_gradient_estimator(
             torch_dtype=model_setting.get_torch_dtype(),
             k_update_strategy=rge_setting.k_update_strategy,
             hessian_smooth=rge_setting.hessian_smooth,
+        )
+    elif rge_setting.estimator_type == EstimatorType.bernoulli_smooth:
+        return BernoulliSmoothGradientEstimator(
+            parameters=model_helpers.get_trainable_model_parameters(model),
+            mu=rge_setting.mu,
+            num_pert=rge_setting.num_pert,
+            grad_estimate_method=rge_setting.grad_estimate_method,
+            device=device,
+            torch_dtype=model_setting.get_torch_dtype(),
+            paramwise_perturb=no_optim,
         )
     else:
         raise ValueError(f"Invalid estimator type: {rge_setting.estimator_type}")
