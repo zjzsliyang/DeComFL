@@ -175,4 +175,50 @@ class BernoulliSmoothGradientEstimator(AbstractGradientEstimator):
         iteration_seeds: Sequence[int],
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
-        pass
+        assert len(iteration_seeds) == len(iteration_grad_scalar)
+
+        if self.sgd_only_no_optim:
+            lr = optimizer.defaults["lr"]  # Assume only one parameter group with lr.
+            assert self.paramwise_perturb
+            for one_update_seed, one_update_grad_dirs in zip(
+                iteration_seeds, iteration_grad_scalar
+            ):
+                self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lr)
+            return
+
+        for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            # We don't really need optimizer.zero_grad() here because we put grad directly.
+            if self.paramwise_perturb:
+                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
+            else:
+                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+            # update model
+            optimizer.step()
+    
+    def revert_model_given_seed_and_grad(
+        self, 
+        optimizer: torch.optim.Optimizer,
+        iteration_seeds: Sequence[int],
+        iteration_grad_scalar: Sequence[torch.Tensor],
+    ) -> None:
+        # TODO: Support sgd_only_no_optim case.
+        assert not self.sgd_only_no_optim
+        assert len(iteration_seeds) == len(iteration_grad_scalar)
+        try:
+            assert isinstance(optimizer, torch.optim.SGD) and optimizer.defaults["momentum"] == 0
+        except AssertionError:
+            raise Exception("Revert only supports SGD without momentum")
+
+        lr, weight_decay = optimizer.defaults["lr"], optimizer.defaults["weight_decay"]
+        for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            # We don't really need optimizer.zero_grad() here because we put grad directly.
+            if self.paramwise_perturb:
+                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
+            else:
+                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+
+            for param in self.parameters_list:
+                assert param.grad is not None
+                param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
+                if weight_decay > 0:
+                    param.mul_(1 / (1 - lr * weight_decay))

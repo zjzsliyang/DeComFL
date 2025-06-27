@@ -106,7 +106,7 @@ class EstimatorType(Enum):
 class RGESetting(FrozenSetting):
     # zo_grad_estimator
     estimator_type: EstimatorType = Field(
-        default=EstimatorType.bernoulli_smooth,
+        default=EstimatorType.vanilla,
         validation_alias=AliasChoices("estimator-type"),
         description="Type of gradient estimator, options: vanilla, adam_forward, bernoulli_smooth",
     )
