@@ -101,6 +101,7 @@ class EstimatorType(Enum):
     vanilla = "vanilla"
     adam_forward = "adam_forward"
     bernoulli_smooth = "bernoulli_smooth"
+    random_bernoulli = "random_bernoulli"
 
 
 class RGESetting(FrozenSetting):
@@ -108,7 +109,7 @@ class RGESetting(FrozenSetting):
     estimator_type: EstimatorType = Field(
         default=EstimatorType.vanilla,
         validation_alias=AliasChoices("estimator-type"),
-        description="Type of gradient estimator, options: vanilla, adam_forward, bernoulli_smooth",
+        description="Type of gradient estimator, options: vanilla, adam_forward, bernoulli_smooth, random_bernoulli",
     )
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
     num_pert: int = Field(

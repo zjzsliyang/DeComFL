@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM
 
 from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
 from cezo_fl.gradient_estimators.bes_gradient_estimator import BernoulliSmoothGradientEstimator
+from cezo_fl.gradient_estimators.random_bes_gradient_estimator import RandomBernoulliGradientEstimator
 from cezo_fl.util import model_helpers
 from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
@@ -231,6 +232,16 @@ def get_gradient_estimator(
         )
     elif rge_setting.estimator_type == EstimatorType.bernoulli_smooth:
         return BernoulliSmoothGradientEstimator(
+            parameters=model_helpers.get_trainable_model_parameters(model),
+            mu=rge_setting.mu,
+            num_pert=rge_setting.num_pert,
+            grad_estimate_method=rge_setting.grad_estimate_method,
+            device=device,
+            torch_dtype=model_setting.get_torch_dtype(),
+            paramwise_perturb=no_optim,
+        )
+    elif rge_setting.estimator_type == EstimatorType.random_bernoulli:
+        return RandomBernoulliGradientEstimator(
             parameters=model_helpers.get_trainable_model_parameters(model),
             mu=rge_setting.mu,
             num_pert=rge_setting.num_pert,
